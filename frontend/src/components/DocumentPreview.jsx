@@ -5,7 +5,7 @@ import axios from 'axios';
 
 const DocumentPreview = ({ file, url, filename, onClose }) => {
     const actualName = filename || (file ? file.name : (url ? url.split('/').pop() : 'Document'));
-    const downloadUrl = file ? URL.createObjectURL(file) : (url || `http://localhost:5001/uploads/${encodeURIComponent(actualName)}`);
+    const downloadUrl = file ? URL.createObjectURL(file) : (url || `/uploads/${encodeURIComponent(actualName)}`);
     
     const extMatch = actualName.match(/\.(pdf|docx|doc|xlsx|xls|csv|jpg|jpeg|png|gif|webp)$/i);
     const ext = extMatch ? extMatch[1].toLowerCase() : '';

@@ -165,7 +165,7 @@ const CollapsibleTimelineNode = ({ log, iconColor, Icon, toName, onPreview }) =>
                                 style={{ width: '56px', height: '56px', borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--border, #e4e4e7)', cursor: 'pointer', position: 'relative', marginTop: '4px' }}
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    const fileUrl = String(log.attachment).startsWith('data:') || String(log.attachment).startsWith('http') ? String(log.attachment) : `http://localhost:5001/uploads/${log.attachment}`;
+                                    const fileUrl = String(log.attachment).startsWith('data:') || String(log.attachment).startsWith('http') ? String(log.attachment) : `/uploads/${log.attachment}`;
                                     const extMatch = String(log.attachment).match(/\.(pdf|docx|doc|xlsx|xls|csv|jpg|jpeg|png|gif|webp)$/i);
                                     const ext = extMatch ? extMatch[1].toLowerCase() : '';
                                     if (ext === 'pdf') {
@@ -192,7 +192,7 @@ const CollapsibleTimelineNode = ({ log, iconColor, Icon, toName, onPreview }) =>
                                         </span>
                                     </div>
                                 ) : (
-                                    <img src={String(log.attachment).startsWith('data:') || String(log.attachment).startsWith('http') ? String(log.attachment) : `http://localhost:5001/uploads/${log.attachment}`} alt="Attachment" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                                    <img src={String(log.attachment).startsWith('data:') || String(log.attachment).startsWith('http') ? String(log.attachment) : `/uploads/${log.attachment}`} alt="Attachment" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
                                 )}
                             </div>
                         )}
@@ -1260,7 +1260,7 @@ const SolverDashboard = ({ user, setUser }) => {
                                                     const attachStr = String(selectedTicket.attachment);
                                                     const isImage = attachStr.match(/\.(jpeg|jpg|gif|png|webp)$/i);
                                                     const isPdf = attachStr.toLowerCase().endsWith('.pdf');
-                                                    const fileUrl = attachStr.startsWith('data:') || attachStr.startsWith('http') ? attachStr : `http://localhost:5001/uploads/${attachStr}`;
+                                                    const fileUrl = attachStr.startsWith('data:') || attachStr.startsWith('http') ? attachStr : `/uploads/${attachStr}`;
                                                     if (isImage) {
                                                         return (
                                                             <div

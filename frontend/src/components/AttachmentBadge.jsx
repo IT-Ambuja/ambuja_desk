@@ -6,7 +6,7 @@ export const AttachmentBadge = ({ attachment, style = {} }) => {
     }
 
     const filename = String(attachment);
-    const fileUrl = filename.startsWith('data:') || filename.startsWith('http') ? filename : `http://localhost:5001/uploads/${filename}`;
+    const fileUrl = filename.startsWith('data:') || filename.startsWith('http') ? filename : `/uploads/${filename}`;
     const extMatch = filename.match(/\.(pdf|docx|doc|xlsx|xls|csv|jpg|jpeg|png|gif|webp)$/i);
     const ext = extMatch ? extMatch[1].toLowerCase() : '';
 

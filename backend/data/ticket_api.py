@@ -2217,7 +2217,7 @@ def preview_document():
             return jsonify({'error': f'Failed to parse Excel spreadsheet: {str(e)}'}), 500
 
     elif ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf']:
-        return jsonify({'type': 'direct', 'url': f'http://localhost:5001/uploads/{filename}'}), 200
+        return jsonify({'type': 'direct', 'url': f'/uploads/{filename}'}), 200
 
     else:
         return jsonify({'error': 'Legacy file format (.doc) is not supported for inline preview. Please download to view.'}), 400

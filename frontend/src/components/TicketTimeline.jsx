@@ -172,7 +172,7 @@ const TicketTimeline = ({ logs = [] }) => {
                                                 style={{ width: '40px', height: '40px', borderRadius: '4px', overflow: 'hidden', border: '1px solid rgba(128,128,128,0.3)', cursor: 'pointer', position: 'relative', marginTop: '8px' }}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    const fileUrl = String(log.attachment).startsWith('data:') || String(log.attachment).startsWith('http') ? String(log.attachment) : `http://localhost:5001/uploads/${log.attachment}`;
+                                                    const fileUrl = String(log.attachment).startsWith('data:') || String(log.attachment).startsWith('http') ? String(log.attachment) : `/uploads/${log.attachment}`;
                                                     const extMatch = String(log.attachment).match(/\.(pdf|docx|doc|xlsx|xls|csv|jpg|jpeg|png|gif|webp)$/i);
                                                     const ext = extMatch ? extMatch[1].toLowerCase() : '';
                                                     if (ext === 'pdf') {
@@ -199,7 +199,7 @@ const TicketTimeline = ({ logs = [] }) => {
                                                         </span>
                                                     </div>
                                                 ) : (
-                                                    <img src={String(log.attachment).startsWith('data:') || String(log.attachment).startsWith('http') ? String(log.attachment) : `http://localhost:5001/uploads/${log.attachment}`} alt="Attachment" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                                                    <img src={String(log.attachment).startsWith('data:') || String(log.attachment).startsWith('http') ? String(log.attachment) : `/uploads/${log.attachment}`} alt="Attachment" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
                                                 )}
                                             </div>
                                         )}
