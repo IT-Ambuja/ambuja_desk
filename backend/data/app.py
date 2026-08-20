@@ -10,8 +10,17 @@ from ticket_api import ticket_bp
 from admin_api import admin_bp
 
 app = Flask(__name__)
-# Allow React (usually running on port 3000 or 5173) to talk to Flask
-CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+
+# In production nginx serves the React build from the same origin as the API,
+# so no cross-origin request is made at all. This only matters for `npm run dev`
+# and any additional origins listed in CORS_ORIGINS (comma-separated).
+# Auth travels in X-User-* headers, not cookies, so credentials are not enabled --
+# and "*" with credentials is rejected by browsers anyway.
+_default_origins = 'http://localhost:5173,http://127.0.0.1:5173'
+CORS_ORIGINS = [o.strip() for o in
+                os.environ.get('CORS_ORIGINS', _default_origins).split(',') if o.strip()]
+CORS(app, resources={r"/api/*": {"origins": CORS_ORIGINS}},
+     allow_headers=['Content-Type', 'X-User-Email', 'X-User-EmpId'])
 
 # Define the path to the physical uploads directory
 UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads')

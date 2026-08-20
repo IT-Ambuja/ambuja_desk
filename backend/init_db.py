@@ -13,7 +13,6 @@ DB_PATHS = {
     'locations': 'data/location.csv',
     'tickets': 'data/tickets.csv',
     'logs': 'data/ticket_logs.csv',
-    'issue_activity': 'data/issue_activity.csv',
     'notifications': 'data/Notifications.csv'
 }
 
@@ -23,7 +22,6 @@ TABLE_NAMES = {
     'locations': 'locations',
     'tickets': 'tickets',
     'logs': 'ticket_logs',
-    'issue_activity': 'issue_activity',
     'notifications': 'notifications'
 }
 
