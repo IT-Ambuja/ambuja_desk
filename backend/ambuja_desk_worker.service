@@ -15,13 +15,13 @@ Wants=postgresql.service
 Type=simple
 User=srvadmin
 Group=srvadmin
-WorkingDirectory=/home/srvadmin/ambuja_desk/backend/data
+WorkingDirectory=/home/srvadmin/ambuja_desk/ambuja_desk/backend/data
 
-EnvironmentFile=/home/srvadmin/ambuja_desk/backend/.env
-Environment="PATH=/home/srvadmin/ambuja_desk/backend/venv/bin:/usr/local/bin:/usr/bin:/bin"
+EnvironmentFile=/home/srvadmin/ambuja_desk/ambuja_desk/backend/.env
+Environment="PATH=/home/srvadmin/ambuja_desk/ambuja_desk/backend/venv/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="PYTHONUNBUFFERED=1"
 
-ExecStart=/home/srvadmin/ambuja_desk/backend/venv/bin/python background_worker.py
+ExecStart=/home/srvadmin/ambuja_desk/ambuja_desk/backend/venv/bin/python background_worker.py
 
 Restart=always
 RestartSec=15
@@ -30,7 +30,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
 ProtectHome=false
-ReadWritePaths=/home/srvadmin/ambuja_desk/backend
+ReadWritePaths=/home/srvadmin/ambuja_desk/ambuja_desk/backend
 
 [Install]
 WantedBy=multi-user.target
