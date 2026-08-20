@@ -77,7 +77,9 @@ const Login = ({ setUser }) => {
         }
 
         try {
-            await resetFirstPassword({ email: resetEmail, new_password: newPassword });
+            // `password` still holds what the user typed to reach this screen;
+            // the server requires it as proof before allowing the reset.
+            await resetFirstPassword({ email: resetEmail, current_password: password, new_password: newPassword });
             alert("Password reset successfully! Please log in with your new password.");
             setIsForceReset(false);
             setPassword('');

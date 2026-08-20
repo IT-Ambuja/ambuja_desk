@@ -85,19 +85,33 @@ def check_auth_status():
 
 @auth_bp.route('/api/reset-first-password', methods=['POST'])
 def reset_first_password():
-    data = request.json
+    data = request.json or {}
     email = data.get('email')
     new_password = data.get('new_password')
-    
+    current_password = data.get('current_password')
+
+    if not email or not new_password or not current_password:
+        return jsonify({"error": "Missing credentials"}), 400
+
     if len(new_password) < 8:
         return jsonify({"error": "Password must be at least 8 characters"}), 400
-        
+
     db = database.Session()
     try:
         user = db.query(User).filter(User.email == email).first()
-        if not user:
-            return jsonify({"error": "User not found"}), 404
-            
+
+        # This route is unauthenticated by design (the user cannot log in until
+        # the reset is done), so it must prove the caller already knows the
+        # current password and that the account is genuinely awaiting a first
+        # reset. Without both checks, anyone who knows an email address can
+        # take over that account. Failures are deliberately indistinguishable
+        # so the endpoint cannot be used to enumerate valid users.
+        if (not user
+                or not user.active
+                or not user.first_login
+                or user.password != hash_password(current_password)):
+            return jsonify({"error": "Invalid credentials"}), 401
+
         user.password = hash_password(new_password)
         user.first_login = False
         db.commit()
