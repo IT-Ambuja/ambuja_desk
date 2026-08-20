@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Darker Ambuja Navy Blue Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e40af" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+
+    <!-- Vibrant Ambuja Orange Gradient -->
+    <linearGradient id="orangeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff7e29" />
+      <stop offset="100%" stop-color="#ea580c" />
+    </linearGradient>
+  </defs>
+
+  <!-- Dark Ambuja Blue Squircle Background -->
+  <rect width="512" height="512" rx="96" fill="url(#bgGrad)" />
+
+  <!-- Bold White 'A' Arch -->
+  <g transform="translate(0, 10)">
+    <path d="M 120 400 L 244 116 C 249 104 263 104 268 116 L 392 400" 
+          fill="none" 
+          stroke="#ffffff" 
+          stroke-width="68" 
+          stroke-linecap="round" 
+          stroke-linejoin="round" />
+
+    <!-- Bold Vibrant Orange Checkmark -->
+    <path d="M 172 296 L 236 360 L 392 184" 
+          fill="none" 
+          stroke="url(#orangeGrad)" 
+          stroke-width="62" 
+          stroke-linecap="round" 
+          stroke-linejoin="round" />
+  </g>
+</svg>

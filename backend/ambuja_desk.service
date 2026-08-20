@@ -1,0 +1,52 @@
+# Ambuja Desk — Flask/Gunicorn API (issuetracker.ambujaneotia.com)
+# Install: sudo cp ambuja_desk.service /etc/systemd/system/
+#          sudo systemctl daemon-reload
+#          sudo systemctl enable --now ambuja_desk
+#          sudo systemctl status ambuja_desk  /  journalctl -u ambuja_desk -f
+
+[Unit]
+Description=Ambuja Desk - Issue Tracker API (Flask/Gunicorn)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=notify
+User=srvadmin
+Group=srvadmin
+
+# NOTE: the Flask modules import each other flat (`from auth_api import auth_bp`)
+# and app.py builds the uploads dir from os.getcwd(), so the working directory
+# MUST be backend/data — not backend.
+WorkingDirectory=/home/srvadmin/ambuja_desk/backend/data
+
+EnvironmentFile=/home/srvadmin/ambuja_desk/backend/.env
+Environment="PATH=/home/srvadmin/ambuja_desk/backend/venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONUNBUFFERED=1"
+
+ExecStart=/home/srvadmin/ambuja_desk/backend/venv/bin/gunicorn \
+    app:app \
+    --bind 127.0.0.1:8015 \
+    --worker-class gthread \
+    --workers 3 \
+    --threads 4 \
+    --timeout 300 \
+    --graceful-timeout 60 \
+    --keep-alive 5 \
+    --access-logfile - \
+    --error-logfile - \
+    --capture-output
+
+ExecReload=/bin/kill -s HUP $MAINPID
+KillSignal=SIGTERM
+Restart=on-failure
+RestartSec=5
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=false
+ReadWritePaths=/home/srvadmin/ambuja_desk/backend
+
+[Install]
+WantedBy=multi-user.target

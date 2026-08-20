@@ -1,0 +1,36 @@
+# Ambuja Desk — background worker (SLA breach checks, auto-close, metric sync)
+# These loops live in app.py under `if __name__ == "__main__"`, so Gunicorn never
+# runs them. This unit runs them once, in a single process.
+#
+# Install: sudo cp ambuja_desk_worker.service /etc/systemd/system/
+#          sudo systemctl daemon-reload
+#          sudo systemctl enable --now ambuja_desk_worker
+
+[Unit]
+Description=Ambuja Desk - Background Worker (SLA / auto-close / metrics)
+After=network.target postgresql.service ambuja_desk.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=srvadmin
+Group=srvadmin
+WorkingDirectory=/home/srvadmin/ambuja_desk/backend/data
+
+EnvironmentFile=/home/srvadmin/ambuja_desk/backend/.env
+Environment="PATH=/home/srvadmin/ambuja_desk/backend/venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONUNBUFFERED=1"
+
+ExecStart=/home/srvadmin/ambuja_desk/backend/venv/bin/python background_worker.py
+
+Restart=always
+RestartSec=15
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=false
+ReadWritePaths=/home/srvadmin/ambuja_desk/backend
+
+[Install]
+WantedBy=multi-user.target
