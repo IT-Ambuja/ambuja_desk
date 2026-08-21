@@ -49,15 +49,14 @@ def delete_tickets():
         db.commit()
 
         # Create system log entry
-        log_entry = SystemLog(
-            timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            actor_email=data.get('user_email', 'Superadmin'),
-            action='Delete Tickets',
-            target=', '.join([str(tid) for tid in ticket_ids[:5]]) + ('...' if len(ticket_ids) > 5 else ''),
-            details=f"Permanently deleted {len(ticket_ids)} ticket(s) along with all timeline logs and notifications."
+        actor_ident = data.get('user_email') or request.headers.get('X-User-Email') or 'Super Admin'
+        target_str = ', '.join([str(tid) for tid in ticket_ids[:5]]) + ('...' if len(ticket_ids) > 5 else '')
+        database.log_system_action(
+            actor_ident,
+            'Delete Tickets',
+            target_str,
+            f"Permanently deleted {len(ticket_ids)} ticket(s) along with all timeline logs and notifications."
         )
-        db.add(log_entry)
-        db.commit()
 
         return jsonify({"message": f"Successfully deleted {deleted_count} ticket(s) and associated records.", "deleted_count": deleted_count}), 200
     except Exception as e:

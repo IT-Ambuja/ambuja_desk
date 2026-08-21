@@ -11,6 +11,15 @@ DEFAULT_PASSWORD = "Kolkata@123"
 def hash_password(password):
     return hashlib.sha256(str.encode(password)).hexdigest()
 
+def get_actor_from_request(data=None):
+    """Extracts actor identifier from payload data or request headers."""
+    if data and isinstance(data, dict):
+        for key in ['admin_email', 'user_email', 'actor', 'email', 'employee_id']:
+            val = data.get(key)
+            if val and str(val).strip() and str(val).strip() != 'Admin':
+                return str(val).strip()
+    return request.headers.get('X-User-Email') or request.headers.get('X-User-EmpId') or request.args.get('admin_email') or 'Admin'
+
 # --- USER MANAGEMENT ---
 @admin_bp.route('/api/admin/system_logs', methods=['GET'])
 def get_system_logs():
@@ -180,13 +189,12 @@ def update_user():
                 db.query(Ticket).filter(Ticket.assigned_to == old_emp).update({Ticket.assigned_to: new_emp}, synchronize_session=False)
                 db.query(Ticket).filter(Ticket.original_raiser == old_emp).update({Ticket.original_raiser: new_emp}, synchronize_session=False)
                 db.query(Ticket).filter(Ticket.reassign_requested_to == old_emp).update({Ticket.reassign_requested_to: new_emp}, synchronize_session=False)
-                # Reporting manager references in other users
+                db.query(TicketLog).filter(TicketLog.user == old_emp).update({TicketLog.user: new_emp}, synchronize_session=False)
+                db.query(CannedResponse).filter(CannedResponse.created_by == old_emp).update({CannedResponse.created_by: new_emp}, synchronize_session=False)
                 db.query(User).filter(User.reporting_manager == old_emp).update({User.reporting_manager: new_emp}, synchronize_session=False)
-                # Notifications
-                db.query(Notification).filter(Notification.emp_id == old_emp).update({Notification.emp_id: new_emp}, synchronize_session=False)
 
-            if old_em and new_em and old_em != new_em:
-                db.query(Ticket).filter(Ticket.raised_by == old_em).update({Ticket.raised_by: new_em}, synchronize_session=False)
+            # Cascade email
+            if old_em != new_em:
                 db.query(Ticket).filter(Ticket.assigned_to == old_em).update({Ticket.assigned_to: new_em}, synchronize_session=False)
                 db.query(Ticket).filter(Ticket.original_raiser == old_em).update({Ticket.original_raiser: new_em}, synchronize_session=False)
                 db.query(Ticket).filter(Ticket.reassign_requested_to == old_em).update({Ticket.reassign_requested_to: new_em}, synchronize_session=False)
@@ -209,7 +217,7 @@ def update_user():
                     t.notify_users = ", ".join(new_parts)
                     t_changed = True
 
-        admin_email = data.get('admin_email', 'Unknown Admin')
+        admin_email = get_actor_from_request(data)
         database.log_system_action(admin_email, 'Update User', user.email, f"Updated user details (role: {user.role}, dept: {user.department})")
         
         db.commit()
@@ -230,7 +238,7 @@ def reset_user_password():
         if not user:
             return jsonify({"error": "User not found"}), 404
             
-        admin_email = data.get('admin_email', 'Unknown Admin')
+        admin_email = get_actor_from_request(data)
         user.password = hash_password(DEFAULT_PASSWORD)
         user.first_login = True
         database.log_system_action(admin_email, 'Reset Password', email, "Reset password to default")
@@ -251,19 +259,11 @@ def toggle_user_active():
         if not user:
             return jsonify({"error": "User not found"}), 404
             
-        admin_email = data.get('admin_email', 'Unknown Admin')
-        admin_user = db.query(User).filter(User.email == admin_email).first()
-        admin_is_super = admin_user and admin_user.role in ['Superadmin', 'Super Admin']
-        target_is_super = user.role in ['Superadmin', 'Super Admin']
-
-        if target_is_super and not admin_is_super:
-            return jsonify({"error": "Admins are not authorized to activate/deactivate Super Admin users."}), 403
-
         # If deactivating, check if user has active assigned tickets
         if not active_status:
-            user_emp_id = str(user.employee_id or '').strip()
-            user_email = str(user.email or '').strip()
-            emp_clean = user_emp_id[:-2] if user_emp_id.endswith('.0') else user_emp_id
+            u_emp_id = str(user.employee_id or '').strip()
+            u_email = str(user.email or '').strip()
+            emp_clean = u_emp_id[:-2] if u_emp_id.endswith('.0') else u_emp_id
 
             all_tickets = db.query(Ticket).all()
             latest_tickets = {}
@@ -273,9 +273,9 @@ def toggle_user_active():
                     latest_tickets[tid] = t
 
             active_tickets = []
-            user_identifiers = {user_emp_id.lower(), emp_clean.lower(), user_email.lower()}
+            u_identifiers = {u_emp_id.lower(), emp_clean.lower(), u_email.lower()}
             if user.name:
-                user_identifiers.add(user.name.strip().lower())
+                u_identifiers.add(user.name.strip().lower())
 
             for tid, t in latest_tickets.items():
                 status_clean = str(t.status or '').strip().lower()
@@ -285,7 +285,7 @@ def toggle_user_active():
                         solvers = [s.strip().lower() for s in assigned_raw.split(',') if s.strip()]
                         for s in solvers:
                             s_clean = s[:-2] if s.endswith('.0') else s
-                            if s in user_identifiers or s_clean in user_identifiers:
+                            if s in u_identifiers or s_clean in u_identifiers:
                                 active_tickets.append(t)
                                 break
 
@@ -296,7 +296,7 @@ def toggle_user_active():
                 return jsonify({"error": err_msg}), 400
 
         user.active = bool(active_status)
-        admin_email = data.get('admin_email', 'Unknown Admin')
+        admin_email = get_actor_from_request(data)
         database.log_system_action(admin_email, 'Toggle Active', email, f"Set active status to {active_status}")
         
         db.commit()
@@ -351,7 +351,7 @@ def delete_user():
                 return jsonify({"error": err_msg}), 400
 
         deleted_count = db.query(User).filter(User.email.in_(emails)).delete(synchronize_session=False)
-        admin_email = data.get('admin_email', 'Unknown Admin')
+        admin_email = get_actor_from_request(data)
         database.log_system_action(admin_email, 'Delete Users', ", ".join(emails), f"Deleted {deleted_count} users")
         
         db.commit()
@@ -383,7 +383,7 @@ def create_project():
             
         new_project = Project(project_name=project_name)
         db.add(new_project)
-        admin_email = data.get('admin_email') or request.args.get('admin_email', 'Admin')
+        admin_email = get_actor_from_request(data)
         database.log_system_action(admin_email, 'Create Project', project_name, f"Created project {project_name}")
         db.commit()
         return jsonify({"message": "Project added successfully"}), 201
@@ -419,7 +419,7 @@ def update_project():
                 # Cascade location string rename to tickets
                 db.query(Ticket).filter(Ticket.location == old_loc_str).update({Ticket.location: new_loc_str}, synchronize_session=False)
 
-        admin_email = data.get('admin_email') or request.args.get('admin_email', 'Admin')
+        admin_email = get_actor_from_request(data)
         database.log_system_action(admin_email, 'Update Project', new_project_name, f"Renamed project from {old_project_name} to {new_project_name}")
         db.commit()
         return jsonify({"message": "Project updated and cascaded across tables successfully"}), 200
@@ -436,7 +436,7 @@ def delete_projects():
     db = database.Session()
     try:
         db.query(Project).filter(Project.project_name.in_(project_names)).delete(synchronize_session=False)
-        admin_email = data.get('admin_email') or request.args.get('admin_email', 'Admin')
+        admin_email = get_actor_from_request(data)
         database.log_system_action(admin_email, 'Delete Projects', ", ".join(project_names), f"Deleted {len(project_names)} projects")
         db.commit()
         return jsonify({"message": f"{len(project_names)} projects deleted successfully"}), 200
@@ -450,7 +450,7 @@ def get_locations():
     db = database.Session()
     try:
         locations = db.query(Location).all()
-        return jsonify([loc.to_dict() for loc in locations]), 200
+        return jsonify([l.to_dict() for l in locations]), 200
     finally:
         db.close()
 
@@ -459,7 +459,10 @@ def create_location():
     data = request.json
     db = database.Session()
     try:
-        loc_str = data.get('location', '')
+        loc_str = f"{data.get('project')}-{data.get('tower')}"
+        if not data.get('project') or not data.get('tower'):
+            return jsonify({"error": "Project and Tower required"}), 400
+            
         if db.query(Location).filter(Location.location == loc_str).first():
             return jsonify({"error": "Location already exists"}), 400
             
@@ -469,7 +472,7 @@ def create_location():
             location=loc_str
         )
         db.add(new_loc)
-        admin_email = data.get('admin_email') or request.args.get('admin_email', 'Admin')
+        admin_email = get_actor_from_request(data)
         database.log_system_action(admin_email, 'Create Location', loc_str, f"Created location {loc_str}")
         db.commit()
         return jsonify({"message": "Location added successfully"}), 201
@@ -509,7 +512,7 @@ def update_location():
                     new_parts = [new_location if p == old_location else p for p in parts]
                     u.viewer_locations = ", ".join(new_parts)
 
-        admin_email = data.get('admin_email') or request.args.get('admin_email', 'Admin')
+        admin_email = get_actor_from_request(data)
         database.log_system_action(admin_email, 'Update Location', new_location, f"Updated location from {old_location} to {new_location}")
         db.commit()
         return jsonify({"message": "Location updated and cascaded across tables successfully"}), 200
@@ -529,7 +532,7 @@ def delete_location():
     db = database.Session()
     try:
         deleted_count = db.query(Location).filter(Location.location.in_(locations_to_delete)).delete(synchronize_session=False)
-        admin_email = data.get('admin_email') or request.args.get('admin_email', 'Admin')
+        admin_email = get_actor_from_request(data)
         database.log_system_action(admin_email, 'Delete Locations', ", ".join(locations_to_delete), f"Deleted {deleted_count} locations")
         db.commit()
         return jsonify({'message': f'Deleted {deleted_count} location(s) successfully'}), 200
@@ -560,7 +563,7 @@ def create_issue_category():
             
         new_ic = IssueCategory(issue_name=issue_name)
         db.add(new_ic)
-        admin_email = data.get('admin_email') or request.args.get('admin_email', 'Admin')
+        admin_email = get_actor_from_request(data)
         database.log_system_action(admin_email, 'Create Issue Category', issue_name, f"Created issue category {issue_name}")
         db.commit()
         return jsonify({"message": "Issue Category added successfully"}), 201
@@ -591,7 +594,7 @@ def update_issue_category():
             db.query(AIRoutingFeedback).filter(AIRoutingFeedback.user_selected_issue == old_issue_name).update({AIRoutingFeedback.user_selected_issue: new_issue_name}, synchronize_session=False)
             db.query(AIRoutingFeedback).filter(AIRoutingFeedback.suggested_issue == old_issue_name).update({AIRoutingFeedback.suggested_issue: new_issue_name}, synchronize_session=False)
 
-        admin_email = data.get('admin_email') or request.args.get('admin_email', 'Admin')
+        admin_email = get_actor_from_request(data)
         database.log_system_action(admin_email, 'Update Issue Category', new_issue_name, f"Renamed issue category from {old_issue_name} to {new_issue_name}")
         db.commit()
         return jsonify({"message": "Issue Category updated and cascaded across tables successfully"}), 200
@@ -611,7 +614,7 @@ def delete_issue_category():
     db = database.Session()
     try:
         deleted_count = db.query(IssueCategory).filter(IssueCategory.issue_name.in_(categories)).delete(synchronize_session=False)
-        admin_email = data.get('admin_email') or request.args.get('admin_email', 'Admin')
+        admin_email = get_actor_from_request(data)
         database.log_system_action(admin_email, 'Delete Issue Categories', ", ".join(categories), f"Deleted {deleted_count} issue categories")
         db.commit()
         return jsonify({'message': f'Deleted {deleted_count} issue category successfully'}), 200
@@ -642,7 +645,7 @@ def create_activity_category():
             
         new_ac = ActivityCategory(activity_name=activity_name)
         db.add(new_ac)
-        admin_email = data.get('admin_email') or request.args.get('admin_email', 'Admin')
+        admin_email = get_actor_from_request(data)
         database.log_system_action(admin_email, 'Create Activity Category', activity_name, f"Created activity category {activity_name}")
         db.commit()
         return jsonify({"message": "Activity Category added successfully"}), 201
@@ -673,7 +676,7 @@ def update_activity_category():
             db.query(AIRoutingFeedback).filter(AIRoutingFeedback.user_selected_act == old_activity_name).update({AIRoutingFeedback.user_selected_act: new_activity_name}, synchronize_session=False)
             db.query(AIRoutingFeedback).filter(AIRoutingFeedback.suggested_act == old_activity_name).update({AIRoutingFeedback.suggested_act: new_activity_name}, synchronize_session=False)
 
-        admin_email = data.get('admin_email') or request.args.get('admin_email', 'Admin')
+        admin_email = get_actor_from_request(data)
         database.log_system_action(admin_email, 'Update Activity Category', new_activity_name, f"Renamed activity category from {old_activity_name} to {new_activity_name}")
         db.commit()
         return jsonify({"message": "Activity Category updated and cascaded across tables successfully"}), 200
@@ -693,7 +696,7 @@ def delete_activity_category():
     db = database.Session()
     try:
         deleted_count = db.query(ActivityCategory).filter(ActivityCategory.activity_name.in_(categories)).delete(synchronize_session=False)
-        admin_email = data.get('admin_email') or request.args.get('admin_email', 'Admin')
+        admin_email = get_actor_from_request(data)
         database.log_system_action(admin_email, 'Delete Activity Categories', ", ".join(categories), f"Deleted {deleted_count} activity categories")
         db.commit()
         return jsonify({'message': f'Deleted {deleted_count} activity category successfully'}), 200
@@ -724,7 +727,7 @@ def create_department():
             
         new_dept = Department(department_name=dept_str)
         db.add(new_dept)
-        admin_email = data.get('admin_email') or request.args.get('admin_email', 'Admin')
+        admin_email = get_actor_from_request(data)
         database.log_system_action(admin_email, 'Create Department', dept_str, f"Created department {dept_str}")
         db.commit()
         return jsonify({"message": "Department added successfully"}), 201
@@ -756,7 +759,7 @@ def update_department():
             db.query(AIRoutingFeedback).filter(AIRoutingFeedback.user_selected_dept == old_dept).update({AIRoutingFeedback.user_selected_dept: new_dept}, synchronize_session=False)
             db.query(AIRoutingFeedback).filter(AIRoutingFeedback.suggested_dept == old_dept).update({AIRoutingFeedback.suggested_dept: new_dept}, synchronize_session=False)
 
-        admin_email = data.get('admin_email') or request.args.get('admin_email', 'Admin')
+        admin_email = get_actor_from_request(data)
         database.log_system_action(admin_email, 'Update Department', new_dept, f"Renamed department from {old_dept} to {new_dept}")
         db.commit()
         return jsonify({"message": "Department updated and cascaded across tables successfully"}), 200
@@ -776,7 +779,7 @@ def delete_department():
     db = database.Session()
     try:
         deleted_count = db.query(Department).filter(Department.department_name.in_(departments)).delete(synchronize_session=False)
-        admin_email = data.get('admin_email') or request.args.get('admin_email', 'Admin')
+        admin_email = get_actor_from_request(data)
         database.log_system_action(admin_email, 'Delete Departments', ", ".join(departments), f"Deleted {deleted_count} departments")
         db.commit()
         return jsonify({'message': f'Deleted {deleted_count} department(s) successfully'}), 200
@@ -1040,7 +1043,7 @@ def import_data(entity):
                 success_count += 1
                 
                 # Master logic import has been disabled as Master table is removed
-        admin_email = request.form.get('admin_email') or request.args.get('admin_email', 'Admin')
+        admin_email = get_actor_from_request(request.form.to_dict() if request.form else None)
         database.log_system_action(admin_email, f'Bulk Import ({entity})', file.filename, f"Successfully imported {success_count} records into {entity}")
         db.commit()
         return jsonify({

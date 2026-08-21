@@ -144,12 +144,29 @@ def log_ticket_action(ticket_id, user_identifier, action, details="", remarks=""
         db.rollback()
 
 def log_system_action(actor_email, action, target="", details=""):
-    """Logs system management actions (User/Department/Location updates) into SystemLog."""
+    """Logs system management actions into SystemLog, resolving actor email/id to role (e.g. Super Admin or Admin) where possible."""
     db = Session()
     try:
+        actor_display = str(actor_email or '').strip()
+        # If actor identifier is an email or emp_id or raw 'Admin', try to resolve to actual user role
+        if actor_display and actor_display not in ['System', 'Cron']:
+            try:
+                matched_user = db.query(User).filter(
+                    (User.email == actor_display) | (User.employee_id == actor_display)
+                ).first()
+                if matched_user:
+                    role_name = matched_user.role or 'Admin'
+                    # Format as 'Super Admin' or 'Admin' if standard, or role name
+                    actor_display = role_name
+            except Exception:
+                pass
+
+        if not actor_display or actor_display.lower() == 'unknown admin':
+            actor_display = 'Admin'
+
         log = SystemLog(
             timestamp=get_ist_now_str('%d-%m-%Y %H:%M'),
-            actor_email=actor_email,
+            actor_email=actor_display,
             action=action,
             target=target,
             details=details
